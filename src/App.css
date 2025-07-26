@@ -1,42 +1,164 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
+.app {
+  width: 360px;
+  padding: 24px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.5;
+  color: #2c3e50;
+  background: #ffffff;
+}
+
+.app-header {
+  margin-bottom: 24px;
+  text-align: center;
+  border-bottom: 1px solid #e9ecef;
+  padding-bottom: 16px;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #1a202c;
+}
+
+.save-section {
+  margin-bottom: 32px;
+}
+
+.keyboard-shortcut {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.shortcut-key {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: #ffffff;
+  border: 2px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #374151;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.shortcut-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: #4b5563;
+}
+
+.status-message {
+  margin: 12px 0;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  background: #ecfdf5;
+  color: #059669;
+  border-radius: 4px;
   text-align: center;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+.helper-text {
+  font-size: 12px;
+  color: #6b7280;
+  text-align: center;
+  line-height: 1.4;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.timestamps-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-height: 280px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e0 transparent;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
+.timestamps-grid::-webkit-scrollbar {
+  width: 4px;
 }
 
-.card {
-  padding: 2em;
+.timestamps-grid::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-.read-the-docs {
-  color: #888;
+.timestamps-grid::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
+  border-radius: 2px;
+}
+
+.timestamp-chip {
+  display: inline-flex;
+  align-items: center;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 4px 6px 4px 10px;
+  transition: all 0.2s ease;
+  max-width: fit-content;
+}
+
+.timestamp-chip:hover {
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+}
+
+.timestamp-time {
+  font-size: 12px;
+  font-weight: 500;
+  color: #3b82f6;
+  cursor: pointer;
+  transition: color 0.2s ease;
+  white-space: nowrap;
+}
+
+.timestamp-time:hover {
+  color: #1d4ed8;
+}
+
+.delete-button {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  border-radius: 50%;
+  padding-bottom: 2px;
+  font-size: 12px;
+  font-weight: bold;
+  line-height: 1;
+  transition: all 0.2s ease;
+  margin-left: 4px;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.delete-button:hover {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 32px 16px;
+  color: #9ca3af;
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 14px;
 }
