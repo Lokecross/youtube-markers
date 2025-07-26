@@ -192,18 +192,29 @@ function injectMarkers(timestamps: Array<{time: number, label: string}>) {
   const progressBarContainer = document.querySelector('.ytp-progress-bar-container');
   const video = document.querySelector('#movie_player video') as HTMLVideoElement;
   
+  console.log('injectMarkers called with', timestamps.length, 'timestamps');
+  console.log('Progress bar container found:', !!progressBarContainer);
+  console.log('Video element found:', !!video);
+  console.log('Video duration:', video?.duration);
+  
   if (!progressBarContainer || !video || !video.duration) {
+    console.log('Cannot inject markers - missing elements or video duration');
     return;
   }
   
   // Clear existing markers
-  progressBarContainer.querySelectorAll('.timestamp-marker').forEach(marker => marker.remove());
+  const existingMarkers = progressBarContainer.querySelectorAll('.timestamp-marker');
+  console.log('Removing', existingMarkers.length, 'existing markers');
+  existingMarkers.forEach(marker => marker.remove());
   
   // Add new markers
-  timestamps.forEach(timestamp => {
+  timestamps.forEach((timestamp, index) => {
+    console.log(`Creating marker ${index + 1}:`, timestamp);
     const marker = createMarker(timestamp.time, video.duration, timestamp.label);
     progressBarContainer.appendChild(marker);
   });
+  
+  console.log('Finished injecting', timestamps.length, 'markers');
 }
 
 function getCurrentVideoId(): string | null {
@@ -213,12 +224,20 @@ function getCurrentVideoId(): string | null {
 
 function loadAndDisplayMarkers() {
   const videoId = getCurrentVideoId();
-  if (!videoId) return;
+  if (!videoId) {
+    console.log('No video ID found, skipping marker load');
+    return;
+  }
+  
+  console.log('Loading markers for video:', videoId);
   
   // Get saved timestamps from storage
   chrome.storage.local.get(['savedTimestamps'], (result) => {
     const savedTimestamps = result.savedTimestamps || [];
     const currentVideoUrl = window.location.href;
+    
+    console.log('Total saved timestamps:', savedTimestamps.length);
+    console.log('Current video URL:', currentVideoUrl);
     
     // Filter timestamps for current video
     const videoTimestamps = savedTimestamps
@@ -228,8 +247,16 @@ function loadAndDisplayMarkers() {
         label: `Saved: ${ts.timestamp}`
       }));
     
+    console.log('Video timestamps for current video:', videoTimestamps.length);
+    
     if (videoTimestamps.length > 0) {
       injectMarkers(videoTimestamps);
+    } else {
+      // Clear existing markers if no timestamps for this video
+      const progressBarContainer = document.querySelector('.ytp-progress-bar-container');
+      if (progressBarContainer) {
+        progressBarContainer.querySelectorAll('.timestamp-marker').forEach(marker => marker.remove());
+      }
     }
   });
 }
@@ -280,6 +307,17 @@ function initializeMarkerSystem() {
   }
 }
 
+// Listen for storage changes to automatically refresh markers
+chrome.storage.onChanged.addListener((changes, namespace) => {
+  if (namespace === 'local' && changes.savedTimestamps) {
+    console.log('Storage changed, refreshing markers');
+    // Add a small delay to ensure the page is ready
+    setTimeout(() => {
+      loadAndDisplayMarkers();
+    }, 200);
+  }
+});
+
 // Initialize when page loads
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initializeMarkerSystem);
@@ -300,6 +338,7 @@ chrome.runtime.onMessage.addListener((request: {action: string, timestamp?: stri
     const success = seekToTime(timeInSeconds);
     sendResponse({ success });
   } else if (request.action === 'refreshMarkers') {
+    console.log('Received refreshMarkers message');
     // Refresh markers when timestamps are updated
     loadAndDisplayMarkers();
     sendResponse({ success: true });

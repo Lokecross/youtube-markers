@@ -47,9 +47,19 @@ function App() {
         
         // Refresh markers on the page
         try {
-          await chrome.tabs.sendMessage(tab.id, { action: 'refreshMarkers' })
+          console.log('About to send refreshMarkers message to tab:', tab.id)
+          // Add a small delay to ensure storage is fully updated
+          setTimeout(async () => {
+            try {
+              console.log('Sending refreshMarkers message now')
+              const response = await chrome.tabs.sendMessage(tab.id!, { action: 'refreshMarkers' })
+              console.log('refreshMarkers response:', response)
+            } catch (error) {
+              console.error('Error refreshing markers:', error)
+            }
+          }, 100)
         } catch (error) {
-          console.error('Error refreshing markers:', error)
+          console.error('Error setting up marker refresh:', error)
         }
       } else {
         setTimestamp('No YouTube video found or not playing')
@@ -177,11 +187,21 @@ function App() {
     // Refresh markers on the page
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+      console.log('Delete: About to send refreshMarkers message to tab:', tab.id)
       if (tab.id) {
-        await chrome.tabs.sendMessage(tab.id, { action: 'refreshMarkers' })
+        // Add a small delay to ensure storage is fully updated
+        setTimeout(async () => {
+          try {
+            console.log('Delete: Sending refreshMarkers message now')
+            const response = await chrome.tabs.sendMessage(tab.id!, { action: 'refreshMarkers' })
+            console.log('Delete: refreshMarkers response:', response)
+          } catch (error) {
+            console.error('Delete: Error refreshing markers:', error)
+          }
+        }, 100)
       }
     } catch (error) {
-      console.error('Error refreshing markers:', error)
+      console.error('Delete: Error setting up marker refresh:', error)
     }
   }
 
