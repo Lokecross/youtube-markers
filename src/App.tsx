@@ -14,7 +14,6 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [savedTimestamps, setSavedTimestamps] = useState<SavedTimestamp[]>([])
   const [currentVideoTimestamps, setCurrentVideoTimestamps] = useState<SavedTimestamp[]>([])
-  const [saving, setSaving] = useState(false)
   const [currentVideoUrl, setCurrentVideoUrl] = useState<string | null>(null)
   const [currentVideoTitle, setCurrentVideoTitle] = useState<string | null>(null)
 
@@ -67,37 +66,13 @@ function App() {
     }
   }, [currentVideoUrl, savedTimestamps])
 
-  const getYouTubeTimestamp = async () => {
+  const saveCurrentTimestamp = async () => {
     setLoading(true)
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
       
       if (!tab.id) {
         setTimestamp('No active tab found')
-        return
-      }
-
-      const response = await chrome.tabs.sendMessage(tab.id, { action: 'getTimestamp' })
-      
-      if (response && response.timestamp) {
-        setTimestamp(response.timestamp)
-      } else {
-        setTimestamp('No YouTube video found or not playing')
-      }
-    } catch (error) {
-      setTimestamp('Error: Make sure you\'re on a YouTube page')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const saveCurrentTimestamp = async () => {
-    setSaving(true)
-    try {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-      
-      if (!tab.id) {
-        alert('No active tab found')
         return
       }
 
@@ -119,12 +94,12 @@ function App() {
         setCurrentVideoUrl(newTimestamp.videoUrl)
         setCurrentVideoTitle(newTimestamp.videoTitle)
       } else {
-        alert('No YouTube video found or not playing')
+        setTimestamp('No YouTube video found or not playing')
       }
     } catch (error) {
-      alert('Error: Make sure you\'re on a YouTube page')
+      setTimestamp('Error: Make sure you\'re on a YouTube page')
     } finally {
-      setSaving(false)
+      setLoading(false)
     }
   }
 
@@ -175,14 +150,18 @@ function App() {
       )}
       
       <div className="card">
-        <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-          <button onClick={getYouTubeTimestamp} disabled={loading || !currentVideoUrl}>
-            {loading ? 'Getting...' : 'Get Current Time'}
-          </button>
-          <button onClick={saveCurrentTimestamp} disabled={saving || !currentVideoUrl}>
-            {saving ? 'Saving...' : 'Save Timestamp'}
-          </button>
-        </div>
+        <button 
+          onClick={saveCurrentTimestamp} 
+          disabled={loading || !currentVideoUrl}
+          style={{ 
+            width: '100%', 
+            padding: '12px', 
+            fontSize: '16px', 
+            marginBottom: '10px' 
+          }}
+        >
+          {loading ? 'Saving...' : 'Save Current Timestamp'}
+        </button>
         
         {timestamp && (
           <p style={{ marginTop: '10px', fontSize: '16px', fontWeight: 'bold' }}>
@@ -191,7 +170,7 @@ function App() {
         )}
         
         <p style={{ fontSize: '12px', color: '#666' }}>
-          {currentVideoUrl ? 'Ready to save timestamps' : 'Open a YouTube video to start'}
+          {currentVideoUrl ? 'Click to save the current video timestamp' : 'Open a YouTube video to start'}
         </p>
       </div>
 
