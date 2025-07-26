@@ -22,11 +22,57 @@ function getCurrentTimestamp(): string | null {
   }
 }
 
+function getCurrentVideoInfo() {
+  const video = document.querySelector('video') as HTMLVideoElement;
+  if (!video) return null;
+
+  const currentTime = video.currentTime;
+  const timestamp = getCurrentTimestamp();
+  const videoTitle = document.querySelector('h1.ytd-video-primary-info-renderer')?.textContent || 
+                    document.querySelector('#title h1')?.textContent || 'Unknown Video';
+  const videoUrl = window.location.href;
+
+  return {
+    timestamp,
+    currentTime,
+    videoTitle: videoTitle.trim(),
+    videoUrl,
+    savedAt: new Date().toLocaleString()
+  };
+}
+
+function seekToTime(timeInSeconds: number): boolean {
+  const video = document.querySelector('video') as HTMLVideoElement;
+  if (!video) return false;
+
+  video.currentTime = timeInSeconds;
+  return true;
+}
+
+function parseTimestamp(timestamp: string): number {
+  const parts = timestamp.split(':').map(part => parseInt(part, 10));
+  if (parts.length === 2) {
+    // MM:SS format
+    return parts[0] * 60 + parts[1];
+  } else if (parts.length === 3) {
+    // HH:MM:SS format
+    return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  }
+  return 0;
+}
+
 // Listen for messages from the popup
-chrome.runtime.onMessage.addListener((request: { action: string }, _sender: chrome.runtime.MessageSender, sendResponse: (response: { timestamp: string | null }) => void) => {
+chrome.runtime.onMessage.addListener((request: any, _sender: chrome.runtime.MessageSender, sendResponse: (response: any) => void) => {
   if (request.action === 'getTimestamp') {
     const timestamp = getCurrentTimestamp();
     sendResponse({ timestamp });
+  } else if (request.action === 'getVideoInfo') {
+    const videoInfo = getCurrentVideoInfo();
+    sendResponse({ videoInfo });
+  } else if (request.action === 'seekToTime') {
+    const timeInSeconds = parseTimestamp(request.timestamp);
+    const success = seekToTime(timeInSeconds);
+    sendResponse({ success });
   }
   return true; // Keep the message channel open for async response
 });
