@@ -7,10 +7,21 @@
       "default_popup": "index.html"
     },
     "permissions": ["activeTab", "storage"],
+    "background": {
+      "service_worker": "background.js"
+    },
     "content_scripts": [
       {
         "matches": ["*://*.youtube.com/*"],
         "js": ["content-script.js"]
       }
-    ]
+    ],
+    "commands": {
+      "save-timestamp": {
+        "suggested_key": {
+          "default": "Alt+S"
+        },
+        "description": "Save current timestamp"
+      }
+    }
   }

@@ -20,7 +20,40 @@ function App() {
   useEffect(() => {
     loadSavedTimestamps()
     getCurrentVideoInfo()
-  }, [])
+    
+    // Listen for keyboard shortcuts
+    const handleKeyPress = (event: KeyboardEvent) => {
+      if (event.key === 's' || event.key === 'S') {
+        event.preventDefault()
+        if (!loading && currentVideoUrl) {
+          saveCurrentTimestamp()
+        }
+      }
+    }
+    
+    // Listen for Chrome extension commands
+    const handleCommand = (command: string) => {
+      if (command === 'save-timestamp') {
+        if (!loading && currentVideoUrl) {
+          saveCurrentTimestamp()
+        }
+      }
+    }
+    
+    document.addEventListener('keydown', handleKeyPress)
+    
+    // Chrome extension command listener
+    if (chrome.commands && chrome.commands.onCommand) {
+      chrome.commands.onCommand.addListener(handleCommand)
+    }
+    
+    return () => {
+      document.removeEventListener('keydown', handleKeyPress)
+      if (chrome.commands && chrome.commands.onCommand) {
+        chrome.commands.onCommand.removeListener(handleCommand)
+      }
+    }
+  }, [loading, currentVideoUrl])
 
   const getCurrentVideoInfo = async () => {
     try {

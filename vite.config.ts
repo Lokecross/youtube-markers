@@ -20,10 +20,13 @@ export default defineConfig({
       input: {
         main: './index.html',
         'content-script': './src/content-script.ts',
+        'background': './src/background.ts',
       },
       output: {
         entryFileNames: (chunkInfo) => {
-          return chunkInfo.name === 'content-script' ? '[name].js' : 'assets/[name]-[hash].js';
+          return (chunkInfo.name === 'content-script' || chunkInfo.name === 'background') 
+            ? '[name].js' 
+            : 'assets/[name]-[hash].js';
         },
       },
     },
