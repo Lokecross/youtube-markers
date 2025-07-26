@@ -13,11 +13,39 @@ function App() {
   const [timestamp, setTimestamp] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [savedTimestamps, setSavedTimestamps] = useState<SavedTimestamp[]>([])
+  const [currentVideoTimestamps, setCurrentVideoTimestamps] = useState<SavedTimestamp[]>([])
   const [saving, setSaving] = useState(false)
+  const [currentVideoUrl, setCurrentVideoUrl] = useState<string | null>(null)
+  const [currentVideoTitle, setCurrentVideoTitle] = useState<string | null>(null)
 
   useEffect(() => {
     loadSavedTimestamps()
+    getCurrentVideoInfo()
   }, [])
+
+  const getCurrentVideoInfo = async () => {
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+      
+      if (!tab.id || !tab.url?.includes('youtube.com/watch')) {
+        setCurrentVideoUrl(null)
+        setCurrentVideoTitle(null)
+        setCurrentVideoTimestamps([])
+        return
+      }
+
+      const response = await chrome.tabs.sendMessage(tab.id, { action: 'getVideoInfo' })
+      
+      if (response && response.videoInfo) {
+        setCurrentVideoUrl(response.videoInfo.videoUrl)
+        setCurrentVideoTitle(response.videoInfo.videoTitle)
+      }
+    } catch (error) {
+      console.error('Error getting current video info:', error)
+      setCurrentVideoUrl(null)
+      setCurrentVideoTitle(null)
+    }
+  }
 
   const loadSavedTimestamps = async () => {
     try {
@@ -27,6 +55,17 @@ function App() {
       console.error('Error loading timestamps:', error)
     }
   }
+
+  useEffect(() => {
+    if (currentVideoUrl && savedTimestamps.length > 0) {
+      const filteredTimestamps = savedTimestamps.filter(
+        timestamp => timestamp.videoUrl === currentVideoUrl
+      )
+      setCurrentVideoTimestamps(filteredTimestamps)
+    } else {
+      setCurrentVideoTimestamps([])
+    }
+  }, [currentVideoUrl, savedTimestamps])
 
   const getYouTubeTimestamp = async () => {
     setLoading(true)
@@ -75,6 +114,10 @@ function App() {
         
         await chrome.storage.local.set({ savedTimestamps: updatedTimestamps })
         setTimestamp(`Saved: ${newTimestamp.timestamp}`)
+        
+        // Update current video info in case it wasn't set
+        setCurrentVideoUrl(newTimestamp.videoUrl)
+        setCurrentVideoTitle(newTimestamp.videoTitle)
       } else {
         alert('No YouTube video found or not playing')
       }
@@ -94,33 +137,16 @@ function App() {
         return
       }
 
-      // Check if we're on the same video
-      if (tab.url !== savedTimestamp.videoUrl) {
-        // Navigate to the video URL first
-        await chrome.tabs.update(tab.id, { url: savedTimestamp.videoUrl })
-        // Wait a bit for the page to load
-        setTimeout(async () => {
-          try {
-            await chrome.tabs.sendMessage(tab.id!, { 
-              action: 'seekToTime', 
-              timestamp: savedTimestamp.timestamp 
-            })
-          } catch (error) {
-            console.error('Error seeking after navigation:', error)
-          }
-        }, 2000)
+      // Since we're only showing current video timestamps, we can directly seek
+      const response = await chrome.tabs.sendMessage(tab.id, { 
+        action: 'seekToTime', 
+        timestamp: savedTimestamp.timestamp 
+      })
+      
+      if (response && response.success) {
+        setTimestamp(`Navigated to: ${savedTimestamp.timestamp}`)
       } else {
-        // Same video, just seek to the timestamp
-        const response = await chrome.tabs.sendMessage(tab.id, { 
-          action: 'seekToTime', 
-          timestamp: savedTimestamp.timestamp 
-        })
-        
-        if (response && response.success) {
-          setTimestamp(`Navigated to: ${savedTimestamp.timestamp}`)
-        } else {
-          alert('Could not navigate to timestamp')
-        }
+        alert('Could not navigate to timestamp')
       }
     } catch (error) {
       alert('Error navigating to timestamp')
@@ -137,12 +163,23 @@ function App() {
     <div style={{ width: '400px', padding: '20px' }}>
       <h1>YouTube Timestamps</h1>
       
+      {currentVideoTitle && (
+        <div style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#f0f0f0', borderRadius: '5px' }}>
+          <div style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '5px' }}>
+            Current Video:
+          </div>
+          <div style={{ fontSize: '12px', color: '#666' }}>
+            {currentVideoTitle}
+          </div>
+        </div>
+      )}
+      
       <div className="card">
         <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-          <button onClick={getYouTubeTimestamp} disabled={loading}>
+          <button onClick={getYouTubeTimestamp} disabled={loading || !currentVideoUrl}>
             {loading ? 'Getting...' : 'Get Current Time'}
           </button>
-          <button onClick={saveCurrentTimestamp} disabled={saving}>
+          <button onClick={saveCurrentTimestamp} disabled={saving || !currentVideoUrl}>
             {saving ? 'Saving...' : 'Save Timestamp'}
           </button>
         </div>
@@ -154,15 +191,15 @@ function App() {
         )}
         
         <p style={{ fontSize: '12px', color: '#666' }}>
-          Use on YouTube video pages
+          {currentVideoUrl ? 'Ready to save timestamps' : 'Open a YouTube video to start'}
         </p>
       </div>
 
-      {savedTimestamps.length > 0 && (
+      {currentVideoTimestamps.length > 0 ? (
         <div style={{ marginTop: '20px' }}>
-          <h3>Saved Timestamps ({savedTimestamps.length})</h3>
+          <h3>Saved Timestamps ({currentVideoTimestamps.length})</h3>
           <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
-            {savedTimestamps.map((saved) => (
+            {currentVideoTimestamps.map((saved) => (
               <div 
                 key={saved.id} 
                 style={{ 
@@ -186,7 +223,7 @@ function App() {
                       onClick={() => navigateToTimestamp(saved)}
                       title="Click to navigate to this timestamp"
                     >
-                      {saved.timestamp} - {saved.videoTitle}
+                      {saved.timestamp}
                     </div>
                     <div style={{ fontSize: '12px', color: '#666' }}>
                       Saved: {saved.savedAt}
@@ -211,7 +248,11 @@ function App() {
             ))}
           </div>
         </div>
-      )}
+      ) : currentVideoUrl ? (
+        <div style={{ marginTop: '20px', textAlign: 'center', color: '#666' }}>
+          <p>No timestamps saved for this video yet.</p>
+        </div>
+      ) : null}
     </div>
   )
 }
