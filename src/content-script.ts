@@ -222,8 +222,8 @@ function loadAndDisplayMarkers() {
     
     // Filter timestamps for current video
     const videoTimestamps = savedTimestamps
-      .filter((ts: any) => ts.videoUrl === currentVideoUrl)
-      .map((ts: any) => ({
+      .filter((ts: {videoUrl: string}) => ts.videoUrl === currentVideoUrl)
+      .map((ts: {timestamp: string}) => ({
         time: parseTimestamp(ts.timestamp),
         label: `Saved: ${ts.timestamp}`
       }));
@@ -288,14 +288,14 @@ if (document.readyState === 'loading') {
 }
 
 // Listen for messages from the popup
-chrome.runtime.onMessage.addListener((request: any, _sender: chrome.runtime.MessageSender, sendResponse: (response: any) => void) => {
+chrome.runtime.onMessage.addListener((request: {action: string, timestamp?: string}, _sender: chrome.runtime.MessageSender, sendResponse: (response: {timestamp?: string | null, videoInfo?: unknown, success?: boolean}) => void) => {
   if (request.action === 'getTimestamp') {
     const timestamp = getCurrentTimestamp();
     sendResponse({ timestamp });
   } else if (request.action === 'getVideoInfo') {
     const videoInfo = getCurrentVideoInfo();
     sendResponse({ videoInfo });
-  } else if (request.action === 'seekToTime') {
+  } else if (request.action === 'seekToTime' && request.timestamp) {
     const timeInSeconds = parseTimestamp(request.timestamp);
     const success = seekToTime(timeInSeconds);
     sendResponse({ success });

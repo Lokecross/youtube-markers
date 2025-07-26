@@ -8,15 +8,22 @@ interface SavedTimestamp {
   savedAt: string
 }
 
+interface VideoInfo {
+  timestamp: string
+  videoTitle: string
+  videoUrl: string
+  savedAt: string
+}
+
 // Listen for messages from content script
-chrome.runtime.onMessage.addListener((request: any, _sender: chrome.runtime.MessageSender, _sendResponse: (response: any) => void) => {
+chrome.runtime.onMessage.addListener((request: {action: string, videoInfo?: VideoInfo}) => {
   if (request.action === 'saveTimestamp' && request.videoInfo) {
     saveTimestamp(request.videoInfo);
   }
   return true;
 });
 
-async function saveTimestamp(videoInfo: any) {
+async function saveTimestamp(videoInfo: VideoInfo) {
   try {
     // Get existing timestamps
     const result = await chrome.storage.local.get(['savedTimestamps']);

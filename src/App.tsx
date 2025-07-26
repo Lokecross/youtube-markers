@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import './App.css'
 
 interface SavedTimestamp {
@@ -16,6 +16,50 @@ function App() {
   const [currentVideoTimestamps, setCurrentVideoTimestamps] = useState<SavedTimestamp[]>([])
   const [currentVideoUrl, setCurrentVideoUrl] = useState<string | null>(null)
   const [currentVideoTitle, setCurrentVideoTitle] = useState<string | null>(null)
+
+  const saveCurrentTimestamp = useCallback(async () => {
+    setLoading(true)
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+      
+      if (!tab.id) {
+        setTimestamp('No active tab found')
+        return
+      }
+
+      const response = await chrome.tabs.sendMessage(tab.id, { action: 'getVideoInfo' })
+      
+      if (response && response.videoInfo) {
+        const newTimestamp: SavedTimestamp = {
+          id: Date.now().toString(),
+          ...response.videoInfo
+        }
+        
+        const updatedTimestamps = [newTimestamp, ...savedTimestamps]
+        setSavedTimestamps(updatedTimestamps)
+        
+        await chrome.storage.local.set({ savedTimestamps: updatedTimestamps })
+        setTimestamp(`Saved: ${newTimestamp.timestamp}`)
+        
+        // Update current video info in case it wasn't set
+        setCurrentVideoUrl(newTimestamp.videoUrl)
+        setCurrentVideoTitle(newTimestamp.videoTitle)
+        
+        // Refresh markers on the page
+        try {
+          await chrome.tabs.sendMessage(tab.id, { action: 'refreshMarkers' })
+        } catch (error) {
+          console.error('Error refreshing markers:', error)
+        }
+      } else {
+        setTimestamp('No YouTube video found or not playing')
+      }
+    } catch (error) {
+      setTimestamp('Error: Make sure you\'re on a YouTube page')
+    } finally {
+      setLoading(false)
+    }
+  }, [savedTimestamps])
 
   useEffect(() => {
     loadSavedTimestamps()
@@ -53,7 +97,7 @@ function App() {
         chrome.commands.onCommand.removeListener(handleCommand)
       }
     }
-  }, [loading, currentVideoUrl])
+  }, [loading, currentVideoUrl, saveCurrentTimestamp])
 
   const getCurrentVideoInfo = async () => {
     try {
@@ -99,49 +143,6 @@ function App() {
     }
   }, [currentVideoUrl, savedTimestamps])
 
-  const saveCurrentTimestamp = async () => {
-    setLoading(true)
-    try {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-      
-      if (!tab.id) {
-        setTimestamp('No active tab found')
-        return
-      }
-
-      const response = await chrome.tabs.sendMessage(tab.id, { action: 'getVideoInfo' })
-      
-      if (response && response.videoInfo) {
-        const newTimestamp: SavedTimestamp = {
-          id: Date.now().toString(),
-          ...response.videoInfo
-        }
-        
-        const updatedTimestamps = [newTimestamp, ...savedTimestamps]
-        setSavedTimestamps(updatedTimestamps)
-        
-        await chrome.storage.local.set({ savedTimestamps: updatedTimestamps })
-        setTimestamp(`Saved: ${newTimestamp.timestamp}`)
-        
-        // Update current video info in case it wasn't set
-        setCurrentVideoUrl(newTimestamp.videoUrl)
-        setCurrentVideoTitle(newTimestamp.videoTitle)
-        
-        // Refresh markers on the page
-        try {
-          await chrome.tabs.sendMessage(tab.id, { action: 'refreshMarkers' })
-        } catch (error) {
-          console.error('Error refreshing markers:', error)
-        }
-      } else {
-        setTimestamp('No YouTube video found or not playing')
-      }
-    } catch (error) {
-      setTimestamp('Error: Make sure you\'re on a YouTube page')
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const navigateToTimestamp = async (savedTimestamp: SavedTimestamp) => {
     try {
