@@ -19,6 +19,12 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: './index.html',
+        'content-script': './src/content-script.ts',
+      },
+      output: {
+        entryFileNames: (chunkInfo) => {
+          return chunkInfo.name === 'content-script' ? '[name].js' : 'assets/[name]-[hash].js';
+        },
       },
     },
   },

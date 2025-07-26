@@ -4,7 +4,32 @@ import viteLogo from '/vite.svg'
 import './App.css'
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [timestamp, setTimestamp] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  const getYouTubeTimestamp = async () => {
+    setLoading(true)
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+      
+      if (!tab.id) {
+        setTimestamp('No active tab found')
+        return
+      }
+
+      const response = await chrome.tabs.sendMessage(tab.id, { action: 'getTimestamp' })
+      
+      if (response && response.timestamp) {
+        setTimestamp(response.timestamp)
+      } else {
+        setTimestamp('No YouTube video found or not playing')
+      }
+    } catch (error) {
+      setTimestamp('Error: Make sure you\'re on a YouTube page')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <>
@@ -16,18 +41,20 @@ function App() {
           <img src={reactLogo} className="logo react" alt="React logo" />
         </a>
       </div>
-      <h1>Vite + React</h1>
+      <h1>YouTube Timestamp</h1>
       <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
+        <button onClick={getYouTubeTimestamp} disabled={loading}>
+          {loading ? 'Getting timestamp...' : 'Get Current Timestamp'}
         </button>
+        {timestamp && (
+          <p style={{ marginTop: '10px', fontSize: '18px', fontWeight: 'bold' }}>
+            Current time: {timestamp}
+          </p>
+        )}
         <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
+          Click the button while on a YouTube video page
         </p>
       </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
     </>
   )
 }
