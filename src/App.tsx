@@ -6,7 +6,13 @@ interface SavedTimestamp {
   timestamp: string
   videoTitle: string
   videoUrl: string
+  videoId: string
   savedAt: string
+}
+
+function extractVideoId(url: string): string | null {
+  const match = url.match(/[?&]v=([^&]+)/);
+  return match ? match[1] : null;
 }
 
 function App() {
@@ -14,7 +20,7 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [savedTimestamps, setSavedTimestamps] = useState<SavedTimestamp[]>([])
   const [currentVideoTimestamps, setCurrentVideoTimestamps] = useState<SavedTimestamp[]>([])
-  const [currentVideoUrl, setCurrentVideoUrl] = useState<string | null>(null)
+  const [currentVideoId, setCurrentVideoId] = useState<string | null>(null)
 
   const saveCurrentTimestamp = useCallback(async () => {
     setLoading(true)
@@ -29,9 +35,16 @@ function App() {
       const response = await chrome.tabs.sendMessage(tab.id, { action: 'getVideoInfo' })
       
       if (response && response.videoInfo) {
+        const videoId = extractVideoId(response.videoInfo.videoUrl)
+        if (!videoId) {
+          setTimestamp('Invalid YouTube video URL')
+          return
+        }
+        
         const newTimestamp: SavedTimestamp = {
           id: Date.now().toString(),
-          ...response.videoInfo
+          ...response.videoInfo,
+          videoId
         }
         
         const updatedTimestamps = [newTimestamp, ...savedTimestamps]
@@ -41,7 +54,7 @@ function App() {
         setTimestamp(`Saved: ${newTimestamp.timestamp}`)
         
         // Update current video info in case it wasn't set
-        setCurrentVideoUrl(newTimestamp.videoUrl)
+        setCurrentVideoId(newTimestamp.videoId)
         
         // Refresh markers on the page
         try {
@@ -77,7 +90,7 @@ function App() {
     const handleKeyPress = (event: KeyboardEvent) => {
       if (event.key === 's' || event.key === 'S') {
         event.preventDefault()
-        if (!loading && currentVideoUrl) {
+        if (!loading && currentVideoId) {
           saveCurrentTimestamp()
         }
       }
@@ -86,7 +99,7 @@ function App() {
     // Listen for Chrome extension commands
     const handleCommand = (command: string) => {
       if (command === 'save-timestamp') {
-        if (!loading && currentVideoUrl) {
+        if (!loading && currentVideoId) {
           saveCurrentTimestamp()
         }
       }
@@ -105,14 +118,14 @@ function App() {
         chrome.commands.onCommand.removeListener(handleCommand)
       }
     }
-  }, [loading, currentVideoUrl, saveCurrentTimestamp])
+  }, [loading, currentVideoId, saveCurrentTimestamp])
 
   const getCurrentVideoInfo = async () => {
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
       
       if (!tab.id || !tab.url?.includes('youtube.com/watch')) {
-        setCurrentVideoUrl(null)
+        setCurrentVideoId(null)
         setCurrentVideoTimestamps([])
         return
       }
@@ -120,33 +133,54 @@ function App() {
       const response = await chrome.tabs.sendMessage(tab.id, { action: 'getVideoInfo' })
       
       if (response && response.videoInfo) {
-        setCurrentVideoUrl(response.videoInfo.videoUrl)
+        const videoId = extractVideoId(response.videoInfo.videoUrl)
+        setCurrentVideoId(videoId)
       }
     } catch (error) {
       console.error('Error getting current video info:', error)
-      setCurrentVideoUrl(null)
+      setCurrentVideoId(null)
     }
   }
 
   const loadSavedTimestamps = async () => {
     try {
       const result = await chrome.storage.local.get(['savedTimestamps'])
-      setSavedTimestamps(result.savedTimestamps || [])
+      const timestamps = result.savedTimestamps || []
+      
+      // Migrate old timestamps without videoId
+      const migratedTimestamps = timestamps.map((ts: SavedTimestamp) => {
+        if (!ts.videoId && ts.videoUrl) {
+          const videoId = extractVideoId(ts.videoUrl)
+          return { ...ts, videoId: videoId || '' }
+        }
+        return ts
+      })
+      
+      // Save migrated data if any changes were made
+      const hasChanges = migratedTimestamps.some((ts: SavedTimestamp, index: number) => 
+        ts.videoId !== timestamps[index]?.videoId
+      )
+      
+      if (hasChanges) {
+        await chrome.storage.local.set({ savedTimestamps: migratedTimestamps })
+      }
+      
+      setSavedTimestamps(migratedTimestamps)
     } catch (error) {
       console.error('Error loading timestamps:', error)
     }
   }
 
   useEffect(() => {
-    if (currentVideoUrl && savedTimestamps.length > 0) {
+    if (currentVideoId && savedTimestamps.length > 0) {
       const filteredTimestamps = savedTimestamps.filter(
-        timestamp => timestamp.videoUrl === currentVideoUrl
+        timestamp => timestamp.videoId === currentVideoId
       )
       setCurrentVideoTimestamps(filteredTimestamps)
     } else {
       setCurrentVideoTimestamps([])
     }
-  }, [currentVideoUrl, savedTimestamps])
+  }, [currentVideoId, savedTimestamps])
 
 
   const navigateToTimestamp = async (savedTimestamp: SavedTimestamp) => {
@@ -217,7 +251,7 @@ function App() {
         )}
         
         <div className="helper-text">
-          {currentVideoUrl ? 'Navigate to a YouTube video and press S' : 'Open a YouTube video to start'}
+          {currentVideoId ? 'Navigate to a YouTube video and press S' : 'Open a YouTube video to start'}
         </div>
       </div>
 
@@ -244,7 +278,7 @@ function App() {
             ))}
           </div>
         </div>
-      ) : currentVideoUrl ? (
+      ) : currentVideoId ? (
         <div className="empty-state">
           <p>No timestamps saved for this video yet.</p>
         </div>

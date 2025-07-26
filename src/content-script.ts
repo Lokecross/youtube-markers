@@ -1,5 +1,10 @@
 // Content script to extract YouTube video timestamp
 
+function extractVideoId(url: string): string | null {
+  const match = url.match(/[?&]v=([^&]+)/);
+  return match ? match[1] : null;
+}
+
 function getCurrentTimestamp(): string | null {
   // Try to find the video element
   const video = document.querySelector('video') as HTMLVideoElement;
@@ -31,12 +36,16 @@ function getCurrentVideoInfo() {
   const videoTitle = document.querySelector('h1.ytd-video-primary-info-renderer')?.textContent || 
                     document.querySelector('#title h1')?.textContent || 'Unknown Video';
   const videoUrl = window.location.href;
+  const videoId = extractVideoId(videoUrl);
+
+  if (!videoId) return null;
 
   return {
     timestamp,
     currentTime,
     videoTitle: videoTitle.trim(),
     videoUrl,
+    videoId,
     savedAt: new Date().toLocaleString()
   };
 }
@@ -234,14 +243,23 @@ function loadAndDisplayMarkers() {
   // Get saved timestamps from storage
   chrome.storage.local.get(['savedTimestamps'], (result) => {
     const savedTimestamps = result.savedTimestamps || [];
-    const currentVideoUrl = window.location.href;
     
     console.log('Total saved timestamps:', savedTimestamps.length);
-    console.log('Current video URL:', currentVideoUrl);
+    console.log('Current video ID:', videoId);
     
-    // Filter timestamps for current video
+    // Filter timestamps for current video using videoId
     const videoTimestamps = savedTimestamps
-      .filter((ts: {videoUrl: string}) => ts.videoUrl === currentVideoUrl)
+      .filter((ts: {videoId?: string, videoUrl?: string}) => {
+        // Support both new videoId and old videoUrl for backward compatibility
+        if (ts.videoId) {
+          return ts.videoId === videoId;
+        } else if (ts.videoUrl) {
+          // Fallback to old URL matching for legacy data
+          const legacyVideoId = extractVideoId(ts.videoUrl);
+          return legacyVideoId === videoId;
+        }
+        return false;
+      })
       .map((ts: {timestamp: string}) => ({
         time: parseTimestamp(ts.timestamp),
         label: `Saved: ${ts.timestamp}`
