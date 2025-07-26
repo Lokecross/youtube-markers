@@ -126,6 +126,13 @@ function App() {
         // Update current video info in case it wasn't set
         setCurrentVideoUrl(newTimestamp.videoUrl)
         setCurrentVideoTitle(newTimestamp.videoTitle)
+        
+        // Refresh markers on the page
+        try {
+          await chrome.tabs.sendMessage(tab.id, { action: 'refreshMarkers' })
+        } catch (error) {
+          console.error('Error refreshing markers:', error)
+        }
       } else {
         setTimestamp('No YouTube video found or not playing')
       }
@@ -165,6 +172,16 @@ function App() {
     const updatedTimestamps = savedTimestamps.filter(t => t.id !== id)
     setSavedTimestamps(updatedTimestamps)
     await chrome.storage.local.set({ savedTimestamps: updatedTimestamps })
+    
+    // Refresh markers on the page
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+      if (tab.id) {
+        await chrome.tabs.sendMessage(tab.id, { action: 'refreshMarkers' })
+      }
+    } catch (error) {
+      console.error('Error refreshing markers:', error)
+    }
   }
 
   return (
